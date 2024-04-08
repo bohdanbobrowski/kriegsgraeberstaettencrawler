@@ -1,6 +1,7 @@
 import gzip
 import hashlib
 import os
+import re
 from io import BytesIO
 from lxml.ElementInclude import etree
 from lxml.html.soupparser import fromstring
@@ -64,12 +65,17 @@ def get_list_page(url: str) -> (int, list[str], list[str]):
         html_content = buffer.getvalue()
     file_write(html_content, url_file)
     html_root = fromstring(html_content.decode(encoding="utf-8"))
+
     # div.graveyards-list>div.paginate-meta>span.current
+    # <div class="paginate-meta">[\s]+<span class="current">[\s]+([0-9]+) - ([0-9]+)[\s]+<\/span>[\s]+<span class="total">[\s]+([0-9]+) von ([0-9]+)
+    paginate_meta_regex = r"([0-9]+) - ([0-9]+)"
+    print(html_content)
+    result = re.search(paginate_meta_regex, html_content.decode(encoding="utf-8"))
     # result = html_root.xpath("//div[contains(@class, 'paginate-meta')]/span/text()")
     # div.graveyards-list>div.paginate-meta>span.total
-    print(etree.tostring(html_root))
+    # print(etree.tostring(html_root))
     # div.graveyards-list>a.graveyard-item href
-    result = html_root.xpath('//a[@class="graveyard-item"]/@href')
+    # result = html_root.xpath('//a[@class="graveyard-item"]/@href')
     print(result)
     # div.graveyards-list>a.graveyard-item h4
     c.close()
