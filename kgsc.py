@@ -2,6 +2,7 @@ import gzip
 import hashlib
 import os
 import re
+from urllib.parse import urljoin
 from io import BytesIO
 from lxml.ElementInclude import etree
 from lxml.html.soupparser import fromstring
@@ -63,30 +64,50 @@ def get_list_page(url: str) -> (int, list[str], list[str]):
         c.setopt(pycurl.WRITEDATA, buffer)
         c.perform()
         html_content = buffer.getvalue()
-    file_write(html_content, url_file)
+        c.close()
+        file_write(html_content, url_file)
     html_root = fromstring(html_content.decode(encoding="utf-8"))
+    result = html_root.xpath("//div[contains(@class, 'paginate-meta')]/span/text()")
+    current_start = current_end = per_page = total = None
+    if len(result) == 2:
+        current_start, current_end = result[0].strip().split(" - ")
+        per_page, total = result[1].strip().split(" von ")
+    graveyard_urls = html_root.xpath("//a[contains(@class, 'graveyard-item')]/@href")
+    graveyard_names = html_root.xpath("//a[contains(@class, 'graveyard-item')]/div/div/div/h4/text()")
+    graveyard_country = html_root.xpath("//a[contains(@class, 'graveyard-item')]/div/div/div/p/span[@class=\"coordinate\"]/text()")
+    graveyard_list = []
+    for x in range(0, len(graveyard_urls)):
+        graveyard_list.append(
+            [
+                graveyard_names[x],
+                graveyard_country[x],
+                graveyard_urls[x],
+            ]
+        )
+    next_url = None
+    next_page_url = html_root.xpath("//li[contains(@class, 'page-item next')]/a/@href")[0]
+    if next_page_url:
+        next_url = urljoin(HOME_URL, next_page_url)
+    return graveyard_list, total, next_url
 
-    # div.graveyards-list>div.paginate-meta>span.current
-    # <div class="paginate-meta">[\s]+<span class="current">[\s]+([0-9]+) - ([0-9]+)[\s]+<\/span>[\s]+<span class="total">[\s]+([0-9]+) von ([0-9]+)
-    paginate_meta_regex = r"([0-9]+) - ([0-9]+)"
-    print(html_content)
-    result = re.search(paginate_meta_regex, html_content.decode(encoding="utf-8"))
-    # result = html_root.xpath("//div[contains(@class, 'paginate-meta')]/span/text()")
-    # div.graveyards-list>div.paginate-meta>span.total
-    # print(etree.tostring(html_root))
-    # div.graveyards-list>a.graveyard-item href
-    # result = html_root.xpath('//a[@class="graveyard-item"]/@href')
-    print(result)
-    # div.graveyards-list>a.graveyard-item h4
-    c.close()
 
+def get_all_graveyards():
+    next_url = LIST_URL
+    graveyards = []
+    while next_url:
+        graveyards_list, total, next_url = get_list_page(next_url)
+        graveyards += graveyards_list
+    return total, graveyards
 
 
 def main():
     prepare_cache_dir()
-    get_list_page(HOME_URL)
+    total, graveyards = get_all_graveyards()
+    print(f"Total: {total} graveyards")
+    print(graveyards)
 
 
 if __name__ == "__main__":
     main()
+
 
