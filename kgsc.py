@@ -33,14 +33,8 @@ def file_write(contents: bytes, filepath: str):
 
 
 def file_read(filepath: str) -> bytes:
-    if os.path.isfile(filepath + ".gz"):
-        with gzip.open(filepath + ".gz", "rb") as f:
-            contents = f.read()
-    else:
-        with open(filepath, "rb") as html_file:
-            contents = html_file.read()
-        file_write(contents, filepath)
-        os.remove(filepath)
+    with gzip.open(filepath, "rb") as f:
+        contents = f.read()
     return contents
 
 
@@ -50,14 +44,16 @@ def prepare_cache_dir():
 
 
 def get_filepath(url: str) -> str:
-    return os.path.join(CACHE_DIR, get_url_hash(url) + ".html")
+    return os.path.join(CACHE_DIR, get_url_hash(url) + ".html.gz")
 
 
 def get_list_page(url: str) -> (int, list[str], list[str]):
     url_file = get_filepath(url)
     if os.path.isfile(url_file):
+        print(f"Reading from cache: {url_file}")
         html_content = file_read(url_file)
     else:
+        print(f"Downloading: {url}")
         c = pycurl.Curl()
         c.setopt(pycurl.URL, url)
         buffer = BytesIO()
@@ -85,10 +81,10 @@ def get_list_page(url: str) -> (int, list[str], list[str]):
             ]
         )
     next_url = None
-    next_page_url = html_root.xpath("//li[contains(@class, 'page-item next')]/a/@href")[0]
+    next_page_url = html_root.xpath("//li[contains(@class, 'page-item next')]/a/@href")
     if next_page_url:
-        next_url = urljoin(HOME_URL, next_page_url)
-    return graveyard_list, total, next_url
+        next_url = urljoin(HOME_URL, next_page_url[0])
+    return graveyard_list, int(total), next_url
 
 
 def get_all_graveyards():
@@ -97,6 +93,8 @@ def get_all_graveyards():
     graveyards = []
     while next_url:
         graveyards_list, total, next_url = get_list_page(next_url)
+        if len(graveyards) == 0:
+            print(f"Downloading total of: {total} graveyards")
         if len(graveyards_list) == 0:
             break
         graveyards += graveyards_list
@@ -108,7 +106,6 @@ def get_all_graveyards():
 def main():
     prepare_cache_dir()
     total, graveyards = get_all_graveyards()
-    print(f"Total: {total} graveyards")
     print(graveyards)
 
 
