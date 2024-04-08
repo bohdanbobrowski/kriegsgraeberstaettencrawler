@@ -9,6 +9,7 @@ from lxml.html.soupparser import fromstring
 import pycurl
 
 CATALOG_FILE = "kriegsgraeberstaetten.csv"
+CATALOG_COLUMNS = ["No.", "Name", "Country", "Url"]
 HOME_URL = "https://kriegsgraeberstaetten.volksbund.de"
 LIST_URL = f"{HOME_URL}/friedhof"
 CACHE_DIR = "./cache/"
@@ -69,15 +70,19 @@ def get_list_page(url: str) -> (int, list[str], list[str]):
         current_start, current_end = result[0].strip().split(" - ")
         per_page, total = result[1].strip().split(" von ")
     graveyard_urls = html_root.xpath("//a[contains(@class, 'graveyard-item')]/@href")
-    graveyard_names = html_root.xpath("//a[contains(@class, 'graveyard-item')]/div/div/div/h4/text()")
-    graveyard_country = html_root.xpath("//a[contains(@class, 'graveyard-item')]/div/div/div/p/span[@class=\"coordinate\"]/text()")
+    graveyard_names = html_root.xpath(
+        "//a[contains(@class, 'graveyard-item')]/div/div/div/h4/text()"
+    )
+    graveyard_country = html_root.xpath(
+        "//a[contains(@class, 'graveyard-item')]/div/div/div/p/span[@class=\"coordinate\"]/text()"
+    )
     graveyard_list = []
     for x in range(0, len(graveyard_urls)):
         graveyard_list.append(
             [
-                graveyard_names[x],
-                graveyard_country[x],
-                graveyard_urls[x],
+                graveyard_names[x].replace('"', "'"),
+                graveyard_country[x].replace('"', "'"),
+                urljoin(HOME_URL, graveyard_urls[x].replace('"', "'")),
             ]
         )
     next_url = None
@@ -103,13 +108,20 @@ def get_all_graveyards():
     return total, graveyards
 
 
+def save_graveyards(graveyards):
+    print(f"Saving {len(graveyards)} graveyards to {CATALOG_FILE}")
+    with open(CATALOG_FILE, "w", encoding="utf-8") as f:
+        f.write('"' + '";"'.join(CATALOG_COLUMNS) + '"\n')
+        for x in range(0, len(graveyards)):
+            values = [str(x + 1)] + graveyards[x]
+            f.write('"' + '";"'.join(values) + '"\n')
+
+
 def main():
     prepare_cache_dir()
     total, graveyards = get_all_graveyards()
-    print(graveyards)
+    save_graveyards(graveyards)
 
 
 if __name__ == "__main__":
     main()
-
-
