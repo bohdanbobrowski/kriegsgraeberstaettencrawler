@@ -92,11 +92,16 @@ def get_list_page(url: str) -> (int, list[str], list[str]):
 
 
 def get_all_graveyards():
+    total = None
     next_url = LIST_URL
     graveyards = []
     while next_url:
         graveyards_list, total, next_url = get_list_page(next_url)
+        if len(graveyards_list) == 0:
+            break
         graveyards += graveyards_list
+        if len(graveyards) >= total:
+            break
     return total, graveyards
 
 
