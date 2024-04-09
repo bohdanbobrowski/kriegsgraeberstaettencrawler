@@ -1,10 +1,8 @@
 import gzip
 import hashlib
 import os
-import re
 from urllib.parse import urljoin
 from io import BytesIO
-from lxml.ElementInclude import etree
 from lxml.html.soupparser import fromstring
 import pycurl
 
